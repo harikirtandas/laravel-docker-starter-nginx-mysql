@@ -101,6 +101,12 @@ Igual que en el starter con SQLite: este repo versiona la **receta** (cómo leva
 - `APP_PORT` (default `8000`) controla el puerto público de Nginx. Permite correr varios proyectos de este starter en paralelo: `APP_PORT=8001 make up`.
 - Los datos de MySQL viven en el volumen con nombre `mysql-data`, no en `src/`. Sobreviven a `make down` y a reinicios de Docker. Para borrarlos de verdad: `docker compose down -v` (fuera del Makefile a propósito, para que no sea un comando de un solo tipeo).
 
+## Compatibilidad Mac/Linux (permisos de archivos)
+
+El servicio `app` corre como usuario no-root (UID/GID configurables por build args, default `1000`). En Mac es indistinto — Docker Desktop traduce el ownership al usuario del host sin importar la UID del contenedor. En Linux nativo (ej. Ubuntu) sí importa: sin esto, `composer create-project` y PHP-FPM escribirían en `src/` como `root`, y no podrías editar/borrar esos archivos con tu usuario normal sin `sudo`.
+
+`make install` pasa tu UID/GID real (`$(id -u)`/`$(id -g)`) tanto a los `docker run` efímeros de Composer como al build de la imagen (`HOST_UID`/`HOST_GID`), así que funciona igual en las dos plataformas sin tocar nada a mano.
+
 ## Variante más simple (SQLite)
 
 Si el proyecto no necesita MySQL ni Nginx, usá [laravel-docker-starter](../laravel-docker-starter): un solo contenedor, SQLite, cero configuración de base de datos.
