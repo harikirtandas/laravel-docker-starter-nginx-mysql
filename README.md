@@ -26,7 +26,7 @@ Tres servicios en `docker-compose.yml`:
 ## Crear un proyecto nuevo desde este template
 
 ```bash
-gh repo create mi-proyecto --template TU_USUARIO/laravel-docker-starter-ngxMsql --private --clone
+gh repo create mi-proyecto --template harikirtandas/laravel-docker-starter-nginx-mysql --private --clone
 cd mi-proyecto
 make install
 ```
