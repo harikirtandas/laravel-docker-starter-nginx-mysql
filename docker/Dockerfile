@@ -10,7 +10,14 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 ARG UID=1000
 ARG GID=1000
-RUN groupadd -g "$GID" app && useradd -u "$UID" -g app -m app
+RUN set -eux; \
+    if getent group "$GID" >/dev/null; then \
+        GROUP_NAME=$(getent group "$GID" | cut -d: -f1); \
+    else \
+        GROUP_NAME=app; \
+        groupadd -g "$GID" "$GROUP_NAME"; \
+    fi; \
+    useradd -u "$UID" -g "$GROUP_NAME" -m app
 
 WORKDIR /var/www/html
 USER app

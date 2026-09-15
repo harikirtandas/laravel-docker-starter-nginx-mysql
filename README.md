@@ -43,33 +43,33 @@ Es idempotente: revisa el estado de `src/` y actúa según corresponda, así que
 | Tiene proyecto pero sin `vendor/` | Corre `composer install` |
 | Ya instalado (`vendor/` existe) | No reinstala nada, solo levanta los contenedores |
 
-En los tres casos, al final levanta `docker compose up -d --build` (que espera a que MySQL esté healthy antes de arrancar `app`) y corre `php artisan migrate`.
+En los tres casos, al final levanta `docker compose up -d --build` (que espera a que MySQL esté healthy antes de arrancar `app`), configura `src/.env` para la conexión MySQL (ver sección siguiente) y corre `php artisan migrate`.
 
 ## Cómo se configura la conexión a MySQL (importante)
 
-Las credenciales de base de datos **no se escriben en `src/.env`**. Se inyectan como variables de entorno del contenedor `app`, definidas en `docker-compose.yml`:
+`DB_HOST`, `DB_PORT`, `DB_USERNAME` y `DB_PASSWORD` se inyectan como variables de entorno del contenedor `app`, definidas en `docker-compose.yml`:
 
 ```yaml
 environment:
-  DB_CONNECTION: mysql
   DB_HOST: mysql
   DB_PORT: 3306
-  DB_DATABASE: ${DB_DATABASE:-laravel}
   DB_USERNAME: ${DB_USERNAME:-laravel}
   DB_PASSWORD: ${DB_PASSWORD:-secret}
 ```
 
-Laravel (vía `phpdotenv`) da prioridad a las variables de entorno reales del proceso por sobre lo que dice el archivo `.env`. Como Docker Compose las setea al crear el contenedor, Laravel las usa directamente — aunque `src/.env` diga `DB_CONNECTION=sqlite` (el default que trae `composer create-project`), no importa: nunca se lee para esto.
+**`DB_CONNECTION` y `DB_DATABASE` son la excepción — a propósito no van acá.** `make install` los escribe directamente en `src/.env` (`DB_CONNECTION=mysql`, `DB_DATABASE=<el mismo nombre que usa el contenedor mysql>`, vía `docker/patch-env-mysql.sh`). Ver la sección "Tests" de abajo para el porqué.
 
-**Por qué así y no editando `.env` con `sed`:** evita tener la config de MySQL duplicada en dos lugares (`docker-compose.yml` y `src/.env`) que se pueden desincronizar si después cambiás una contraseña en uno y te olvidás del otro. Con este approach hay una sola fuente de verdad.
-
-Si en algún momento necesitás cambiar el nombre de la base, usuario o contraseña, no edites `src/.env`: copiá `.env.example` (en la raíz de este repo, no en `src/`) a `.env` y modificalo ahí. `docker-compose.yml` lo lee automáticamente.
+Si en algún momento necesitás cambiar el nombre de la base, usuario o contraseña, no edites `src/.env` a mano: copiá `.env.example` (en la raíz de este repo, no en `src/`) a `.env`, modificalo, y corré `make install` de nuevo (recalcula lo que hace falta).
 
 ```bash
 cp .env.example .env
 # editar .env
-make down && make up
+make down && make install
 ```
+
+## Tests
+
+Los tests corren de forma segura, aislados de la base de desarrollo, sin ninguna configuración extra — `php artisan test`, `vendor/bin/phpunit`, o el test runner del IDE dan todos el mismo resultado: el `phpunit.xml` que trae Laravel por default apunta los tests a sqlite en memoria, y como `DB_CONNECTION`/`DB_DATABASE` no son variables de entorno del contenedor (ver sección anterior), nada le compite a esa configuración. `RefreshDatabase` puede migrar y dropear tablas libremente en cada corrida sin tocar la base de desarrollo real.
 
 ## Comandos disponibles (Makefile)
 
@@ -81,6 +81,7 @@ make down && make up
 | `make shell` | Abre una terminal `bash` dentro del contenedor `app`. Desde ahí corrés `php artisan ...`, `composer require ...`, etc. |
 | `make db-shell` | Abre el cliente `mysql` conectado a la base del proyecto, usando las mismas credenciales del contenedor. |
 | `make fresh` | Corre `migrate:fresh --seed`: **borra todas las tablas** y las recrea con seeders. Pide confirmación explícita antes de ejecutar. |
+| `make test` | Corre el test suite (`php artisan test`). Ver sección "Tests" más abajo — es seguro correrlo así, y también corriendo `vendor/bin/phpunit`/`vendor/bin/pest`/el test runner del IDE directamente. |
 
 Ejemplo de uso día a día:
 

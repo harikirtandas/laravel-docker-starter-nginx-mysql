@@ -1,4 +1,4 @@
-.PHONY: install up down shell db-shell fresh
+.PHONY: install up down shell db-shell fresh test
 
 install:
 	@mkdir -p src
@@ -14,6 +14,10 @@ install:
 		echo "==> Proyecto ya instalado, solo levantando."; \
 	fi
 	HOST_UID=$$(id -u) HOST_GID=$$(id -g) docker compose up -d --build
+	@echo "==> Configurando .env para MySQL (DB_CONNECTION/DB_DATABASE NO se inyectan por environment: a proposito, ver README seccion 'Tests')..."
+	@DB_NAME=$$(docker compose exec -T mysql sh -c 'echo $$MYSQL_DATABASE'); \
+	docker compose cp docker/patch-env-mysql.sh app:/tmp/patch-env-mysql.sh; \
+	docker compose exec app sh /tmp/patch-env-mysql.sh "$$DB_NAME"
 	docker compose exec app php artisan migrate
 	@echo "Listo -> http://localhost:$${APP_PORT:-8000}"
 
@@ -36,3 +40,6 @@ fresh:
 	else \
 		echo "Cancelado."; \
 	fi
+
+test:
+	docker compose exec app php artisan test
